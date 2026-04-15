@@ -4,6 +4,8 @@ Sei Wise Voice Agent is a scoped voice support demo for Wise transfer-tracking q
 
 The project is intentionally narrow: it is designed to answer only "Where is my money?" style questions and to deflect everything else politely.
 
+![UI Demo](data/ui.gif)
+
 ## What It Does
 
 - Answers Wise transfer status questions such as processing, transfer sent, complete, and delayed transfers.
