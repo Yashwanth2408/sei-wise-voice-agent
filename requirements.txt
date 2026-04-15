@@ -1,0 +1,9 @@
+pipecat-ai[deepgram,cartesia,groq,silero,runner,webrtc]
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic-settings
+structlog
+orjson
+httpx
+websockets

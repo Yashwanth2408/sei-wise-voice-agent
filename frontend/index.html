@@ -1,0 +1,324 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wise Transfer Support Voice Agent</title>
+    <link rel="stylesheet" href="/demo-assets/styles.css">
+</head>
+
+<body>
+    <div class="page-shell">
+        <div class="page-noise"></div>
+
+        <header class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow">Wise transfer support voice agent</p>
+                <h1>Real-time transfer guidance for Wise support.</h1>
+                <p class="hero-text">
+                    This voice agent helps customers understand where
+                    their Wise transfer is, explains common status updates, and stays tightly aligned to
+                    approved FAQ content instead of hallucinating answers.
+                </p>
+
+                <div class="hero-pills">
+                    <span>Voice-first support</span>
+                    <span>FAQ-grounded answers</span>
+                    <span>Realtime WebRTC</span>
+                    <span>Responsive landing page</span>
+                </div>
+
+                <div class="hero-actions">
+                    <button id="start-call" class="primary-button">Start Call</button>
+                    <button id="end-call" class="secondary-button" disabled>End Call</button>
+                    <button id="mute-call" class="secondary-button" disabled>Mute</button>
+                </div>
+
+                <div class="hero-status">
+                    <span id="status-pill" class="status-pill idle">Idle</span>
+                    <span id="status-text" class="status-text">Ready to launch the voice session</span>
+                </div>
+            </div>
+
+            <aside class="hero-card spotlight-card">
+                <div class="card-topline">
+                    <span>Project overview</span>
+                    <span class="card-badge">Production-style</span>
+                </div>
+
+                <div class="overview-list">
+                    <div>
+                        <h3>What it does</h3>
+                        <p>
+                            Listens to a caller, transcribes speech in real time, checks whether the request
+                            belongs to the Wise "Where is my money?" support scope, and returns a grounded
+                            spoken response.
+                        </p>
+                    </div>
+                    <div>
+                        <h3>Why it matters</h3>
+                        <p>
+                            It shows a complete voice-product workflow: mic input, live routing,
+                            scoped responses, call telemetry, and a clean browser-based session.
+                        </p>
+                    </div>
+                </div>
+            </aside>
+        </header>
+
+        <section class="highlights-grid">
+            <article class="info-card">
+                <p class="card-label">Voice behavior</p>
+                <h2>Conversational support flow</h2>
+                <p>
+                    The page shows how the agent listens, classifies the request, answers in scope, and
+                    handles off-topic turns in a natural way.
+                </p>
+            </article>
+            <article class="info-card">
+                <p class="card-label">Scope control</p>
+                <h2>FAQ-first routing</h2>
+                <p>
+                    The agent is constrained to approved transfer-tracking topics, with out-of-scope
+                    prompts handled gracefully instead of guessed at.
+                </p>
+            </article>
+            <article class="info-card">
+                <p class="card-label">Delivery</p>
+                <h2>Realtime speech loop</h2>
+                <p>
+                    Browser microphone audio is streamed to the backend, processed through STT, routed,
+                    and spoken back with low-latency TTS.
+                </p>
+            </article>
+        </section>
+
+        <section class="live-grid">
+            <section class="panel call-panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="panel-label">Live session</p>
+                        <h2>Audio monitor</h2>
+                    </div>
+                    <span id="connection-label" class="connection-label">Disconnected</span>
+                </div>
+
+                <div class="meters">
+                    <div class="meter-card">
+                        <div class="meter-head">
+                            <span>Caller</span>
+                            <span id="mic-state">Mic offline</span>
+                        </div>
+                        <div id="user-meter" class="voice-meter">
+                            <span></span><span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                    </div>
+
+                    <div class="meter-card">
+                        <div class="meter-head">
+                            <span>Agent</span>
+                            <span id="agent-state">Waiting</span>
+                        </div>
+                        <div id="assistant-meter" class="voice-meter assistant">
+                            <span></span><span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="signal-strip">
+                    <div>
+                        <span class="signal-label">Transport</span>
+                        <strong id="transport-text">Pipecat WebRTC</strong>
+                    </div>
+                    <div>
+                        <span class="signal-label">Audio route</span>
+                        <strong id="audio-route">Mic to realtime support agent</strong>
+                    </div>
+                    <div>
+                        <span class="signal-label">Session</span>
+                        <strong id="session-text">Not started</strong>
+                    </div>
+                </div>
+
+                <div class="signal-strip stats-strip">
+                    <div>
+                        <span class="signal-label">Duration</span>
+                        <strong id="duration-text">00:00</strong>
+                    </div>
+                    <div>
+                        <span class="signal-label">Turns</span>
+                        <strong id="turn-count">0</strong>
+                    </div>
+                    <div>
+                        <span class="signal-label">Last event</span>
+                        <strong id="last-event">None</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel transcript-panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="panel-label">Conversation</p>
+                        <h2>Transcript feed</h2>
+                    </div>
+                    <button id="clear-transcript" class="ghost-button">Clear</button>
+                </div>
+
+                <div id="transcript" class="transcript">
+                    <div class="empty-state">
+                        Start the call to see the caller and agent transcript appear here in real time.
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <section class="info-grid">
+            <section class="panel stack-panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="panel-label">How it works</p>
+                        <h2>Voice pipeline</h2>
+                    </div>
+                </div>
+
+                <div class="process-grid">
+                    <div class="process-step">
+                        <span>01</span>
+                        <h3>Capture</h3>
+                        <p>Browser mic audio is sent through the WebRTC transport to the backend pipeline.</p>
+                    </div>
+                    <div class="process-step">
+                        <span>02</span>
+                        <h3>Transcribe</h3>
+                        <p>Deepgram converts speech to text in real time so the agent can react conversationally.</p>
+                    </div>
+                    <div class="process-step">
+                        <span>03</span>
+                        <h3>Route</h3>
+                        <p>Groq-based routing keeps responses inside the Wise transfer-tracking FAQ scope.</p>
+                    </div>
+                    <div class="process-step">
+                        <span>04</span>
+                        <h3>Speak</h3>
+                        <p>Cartesia TTS returns a concise answer back to the caller with a natural spoken voice.</p>
+                    </div>
+                </div>
+
+                <div class="stack-blocks">
+                    <div class="stack-card">
+                        <p class="card-label">Tech stack</p>
+                        <ul class="stack-list">
+                            <li><strong>Frontend:</strong> Vanilla HTML, CSS, and JavaScript</li>
+                            <li><strong>Transport:</strong> Pipecat WebRTC</li>
+                            <li><strong>STT:</strong> Deepgram Nova-3</li>
+                            <li><strong>LLM routing:</strong> Groq GPT OSS 20B</li>
+                            <li><strong>TTS:</strong> Cartesia Sonic</li>
+                        </ul>
+                    </div>
+                    <div class="stack-card">
+                        <p class="card-label">Key capabilities</p>
+                        <ul class="stack-list">
+                            <li>Scoped support agent behavior</li>
+                            <li>Real-time turn taking and transcript display</li>
+                            <li>Fallback-safe call control and telemetry</li>
+                            <li>Conversational voice handling</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel scope-panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="panel-label">Scope</p>
+                        <h2>What the agent handles</h2>
+                    </div>
+                </div>
+
+                <div class="scope-grid">
+                    <div class="scope-card in-scope">
+                        <h3>In scope</h3>
+                        <p>
+                            Transfer status, delayed transfers, money received, transfer sent, proof of
+                            payment, estimated arrival, and other approved Wise "Where is my money?"
+                            questions.
+                        </p>
+                    </div>
+                    <div class="scope-card out-scope">
+                        <h3>Out of scope</h3>
+                        <p>
+                            Fees, exchange rates, account opening, fraud disputes, card topics, and any
+                            request that would require guessing beyond the supported FAQ.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <section class="panel faq-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="panel-label">FAQ examples</p>
+                    <h2>Boundary test questions</h2>
+                </div>
+            </div>
+
+            <div class="faq-grid">
+                <div class="faq-card in-scope">
+                    <p class="card-label">In scope</p>
+                    <h3>Questions the agent should answer</h3>
+                    <ul class="faq-list">
+                        <li>Where is my money?</li>
+                        <li>Why hasnt my transfer arrived yet?</li>
+                        <li>My transfer says complete but the recipient hasnt received anything why?</li>
+                        <li>What does Processing status mean?</li>
+                        <li>What is the difference between Transfer Sent and Complete?</li>
+                        <li>My transfer has been stuck for 3 days whats happening?</li>
+                        <li>Can a weekend delay my Wise transfer?</li>
+                        <li>Why would a compliance check hold up my transfer?</li>
+                        <li>Why is my bank transfer taking so long?</li>
+                        <li>What name will show on the recipient's bank statement?</li>
+                        <li>My recipient says the money hasnt shown up in their account</li>
+                        <li>How do I know if my recipients bank is processing the transfer?</li>
+                        <li>My recipient got the wrong amount what should I check?</li>
+                        <li>How do I get a transfer receipt?</li>
+                        <li>What is proof of payment and when do I need it?</li>
+                        <li>My recipients bank is asking for a reference number where do I find it?</li>
+                        <li>What is a banking partner reference number?</li>
+                        <li>How long does a card payment take on Wise?</li>
+                        <li>How long does a SWIFT transfer take?</li>
+                        <li>Is a bank transfer faster than paying by card on Wise?</li>
+                        <li>The money left my account but nothing on the other end</li>
+                        <li>Transfer sent 6 days ago India UTR number?</li>
+                        <li>Pacs.008 reference what is that?</li>
+                        <li>It says sent but my friend in Australia cant find it</li>
+                        <li>Money is with Wise but hasnt moved</li>
+                    </ul>
+                </div>
+
+                <div class="faq-card out-scope">
+                    <p class="card-label">Out of scope</p>
+                    <h3>Questions the agent should deflect</h3>
+                    <ul class="faq-list">
+                        <li>What are your fees for sending to India?</li>
+                        <li>What is todays GBP to INR exchange rate?</li>
+                        <li>How do I open a Wise account?</li>
+                        <li>My Wise card got blocked help</li>
+                        <li>I think there is fraud on my account</li>
+                        <li>Can I cancel a transfer?</li>
+                        <li>How do I set up a new recipient?</li>
+                        <li>Before that, how is your day?</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <audio id="remote-audio" autoplay playsinline></audio>
+    </div>
+
+    <script src="/demo-assets/app.js"></script>
+</body>
+
+</html>
