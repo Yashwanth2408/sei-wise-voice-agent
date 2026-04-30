@@ -1,4 +1,4 @@
-pipecat-ai[deepgram,cartesia,groq,silero,runner,webrtc]
+pipecat-ai[deepgram,cartesia,groq,silero,runner,livekit]
 fastapi
 uvicorn[standard]
 python-dotenv

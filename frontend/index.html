@@ -25,7 +25,7 @@
                 <div class="hero-pills">
                     <span>Voice-first support</span>
                     <span>FAQ-grounded answers</span>
-                    <span>Realtime WebRTC</span>
+                    <span>Realtime LiveKit</span>
                     <span>Responsive landing page</span>
                 </div>
 
@@ -129,7 +129,7 @@
                 <div class="signal-strip">
                     <div>
                         <span class="signal-label">Transport</span>
-                        <strong id="transport-text">Pipecat WebRTC</strong>
+                        <strong id="transport-text">LiveKit</strong>
                     </div>
                     <div>
                         <span class="signal-label">Audio route</span>
@@ -187,7 +187,7 @@
                     <div class="process-step">
                         <span>01</span>
                         <h3>Capture</h3>
-                        <p>Browser mic audio is sent through the WebRTC transport to the backend pipeline.</p>
+                        <p>Browser mic audio is sent through LiveKit to the backend pipeline.</p>
                     </div>
                     <div class="process-step">
                         <span>02</span>
@@ -211,7 +211,7 @@
                         <p class="card-label">Tech stack</p>
                         <ul class="stack-list">
                             <li><strong>Frontend:</strong> Vanilla HTML, CSS, and JavaScript</li>
-                            <li><strong>Transport:</strong> Pipecat WebRTC</li>
+                            <li><strong>Transport:</strong> LiveKit</li>
                             <li><strong>STT:</strong> Deepgram Nova-3</li>
                             <li><strong>LLM routing:</strong> Groq GPT OSS 20B</li>
                             <li><strong>TTS:</strong> Cartesia Sonic</li>
@@ -318,6 +318,7 @@
         <audio id="remote-audio" autoplay playsinline></audio>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
     <script src="/demo-assets/app.js"></script>
 </body>
 

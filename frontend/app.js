@@ -1,12 +1,8 @@
 const state = {
-    pc: null,
-    dataChannel: null,
+    room: null,
     localStream: null,
     remoteStream: null,
     sessionId: null,
-    pcId: null,
-    candidateQueue: [],
-    canSendCandidates: false,
     userAudioContext: null,
     assistantAudioContext: null,
     userAnalyser: null,
@@ -280,6 +276,11 @@ async function startCall() {
 
 
     try {
+        const livekit = window.LivekitClient || window.LiveKitClient;
+        if (!livekit) {
+            throw new Error("LiveKit client SDK was not loaded");
+        }
+
         setStatus("live", "Requesting microphone access", "Starting");
         setConnection("Connecting");
         sessionText.textContent = "Initializing";
@@ -293,114 +294,67 @@ async function startCall() {
         await setupAnalyser(state.localStream, "user");
 
 
-        const startResponse = await fetch("/start", {
+        const sessionResponse = await fetch("/livekit/session", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-                createDailyRoom: false,
-                enableDefaultIceServers: true,
-                transport: "webrtc",
-            }),
         });
-        const startData = await startResponse.json();
+        if (!sessionResponse.ok) {
+            const detail = await sessionResponse.text();
+            throw new Error(detail || "Could not create LiveKit session");
+        }
+        const sessionData = await sessionResponse.json();
 
 
-        state.sessionId = startData.sessionId;
-        sessionText.textContent = startData.sessionId;
-
-
-        state.pc = new RTCPeerConnection({
-            iceServers: startData.iceConfig?.iceServers || [],
+        state.sessionId = sessionData.roomName;
+        sessionText.textContent = sessionData.roomName;
+        const { Room, RoomEvent, Track } = livekit;
+        state.room = new Room({
+            adaptiveStream: true,
+            dynacast: true,
         });
         state.remoteStream = new MediaStream();
         remoteAudioEl.srcObject = state.remoteStream;
 
 
-        state.dataChannel = state.pc.createDataChannel("chat", { ordered: true });
-        state.dataChannel.addEventListener("open", () => {
+        state.room.on(RoomEvent.Connected, () => {
             setConnection("Connected");
             setStatus("live", "Call live. Speak naturally.", "Live");
-            state.dataChannel.send(JSON.stringify(buildClientReadyPayload()));
         });
-        state.dataChannel.addEventListener("message", onDataChannelMessage);
+        state.room.on(RoomEvent.Disconnected, () => {
+            if (state.started) {
+                setStatus("warn", "Connection closed", "Closed");
+                setConnection("Disconnected");
+                void endCall();
+            }
+        });
+        state.room.on(RoomEvent.TrackSubscribed, (track) => {
+            if (track.kind === Track.Kind.Audio && track.mediaStreamTrack) {
+                if (!state.remoteStream.getAudioTracks().includes(track.mediaStreamTrack)) {
+                    state.remoteStream.addTrack(track.mediaStreamTrack);
+                    remoteAudioEl.srcObject = state.remoteStream;
+                    setupAnalyser(state.remoteStream, "assistant");
+                }
+            }
+        });
+        state.room.on(RoomEvent.TrackUnsubscribed, (track) => {
+            if (track.kind === Track.Kind.Audio && track.mediaStreamTrack && state.remoteStream) {
+                state.remoteStream.removeTrack(track.mediaStreamTrack);
+            }
+        });
+        state.room.on(RoomEvent.DataReceived, onLiveKitDataReceived);
 
 
+        await state.room.connect(sessionData.url, sessionData.token);
         const audioTrack = state.localStream.getAudioTracks()[0];
         if (!audioTrack) {
             throw new Error("No microphone track available");
         }
-        state.pc.addTrack(audioTrack, state.localStream);
-
-
-        state.pc.ontrack = (event) => {
-            if (event.track.kind === "audio") {
-                state.remoteStream.addTrack(event.track);
-                setupAnalyser(state.remoteStream, "assistant");
-            }
-        };
-
-
-        state.pc.onicecandidate = async (event) => {
-            if (!event.candidate) {
-                return;
-            }
-
-
-            if (!state.canSendCandidates || !state.pcId) {
-                state.candidateQueue.push(event.candidate);
-                return;
-            }
-
-
-            await sendIceCandidates([event.candidate]);
-        };
-
-
-        state.pc.onconnectionstatechange = () => {
-            if (["failed", "disconnected", "closed"].includes(state.pc.connectionState)) {
-                if (state.started) {
-                    setStatus("warn", "Connection closed", "Closed");
-                    setConnection("Disconnected");
-                    void endCall();
-                }
-            }
-        };
-
-
-        const offer = await state.pc.createOffer();
-        await state.pc.setLocalDescription(offer);
-
-
-        const offerResponse = await fetch(`/sessions/${state.sessionId}/api/offer`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                sdp: state.pc.localDescription.sdp,
-                type: state.pc.localDescription.type,
-            }),
+        await state.room.localParticipant.publishTrack(audioTrack, {
+            source: Track.Source.Microphone,
         });
-
-
-        const answer = await offerResponse.json();
-        state.pcId = answer.pc_id;
-
-
-        await state.pc.setRemoteDescription({
-            type: answer.type,
-            sdp: answer.sdp,
-        });
-
-
-        state.canSendCandidates = true;
-        if (state.candidateQueue.length) {
-            const pending = [...state.candidateQueue];
-            state.candidateQueue = [];
-            await sendIceCandidates(pending);
-        }
+        await publishClientReady();
 
 
         state.started = true;
@@ -423,33 +377,27 @@ async function startCall() {
 }
 
 
-async function sendIceCandidates(candidates) {
-    if (!state.sessionId || !state.pcId || candidates.length === 0) {
+async function publishClientReady() {
+    if (!state.room || !state.room.localParticipant) {
         return;
     }
-
-
-    await fetch(`/sessions/${state.sessionId}/api/offer`, {
-        method: "PATCH",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            pc_id: state.pcId,
-            candidates: candidates.map((candidate) => ({
-                candidate: candidate.candidate,
-                sdp_mid: candidate.sdpMid,
-                sdp_mline_index: candidate.sdpMLineIndex,
-            })),
-        }),
-    });
+    const payload = new TextEncoder().encode(JSON.stringify(buildClientReadyPayload()));
+    await state.room.localParticipant.publishData(payload, { reliable: true });
 }
 
 
-function onDataChannelMessage(event) {
+function onLiveKitDataReceived(payload) {
+    let rawText = "";
+    if (typeof payload === "string") {
+        rawText = payload;
+    } else {
+        rawText = new TextDecoder().decode(payload);
+    }
+
+
     let message;
     try {
-        message = JSON.parse(event.data);
+        message = JSON.parse(rawText);
     } catch (error) {
         return;
     }
@@ -524,19 +472,11 @@ function extractDemoPayloads(message) {
 
 
 async function endCall() {
-    if (state.dataChannel && state.dataChannel.readyState === "open") {
-        try {
-            state.dataChannel.close();
-        } catch (error) {
-            console.warn(error);
-        }
-    }
+    state.started = false;
 
-
-    if (state.pc) {
+    if (state.room) {
         try {
-            state.pc.getSenders().forEach((sender) => sender.track && sender.track.stop());
-            state.pc.close();
+            await state.room.disconnect();
         } catch (error) {
             console.warn(error);
         }
@@ -563,19 +503,14 @@ async function endCall() {
     }
 
 
-    state.pc = null;
-    state.dataChannel = null;
+    state.room = null;
     state.localStream = null;
     state.remoteStream = null;
     state.sessionId = null;
-    state.pcId = null;
-    state.candidateQueue = [];
-    state.canSendCandidates = false;
     state.userAudioContext = null;
     state.assistantAudioContext = null;
     state.userAnalyser = null;
     state.assistantAnalyser = null;
-    state.started = false;
     state.muted = false;
 
 

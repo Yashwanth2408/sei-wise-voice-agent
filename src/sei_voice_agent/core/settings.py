@@ -28,6 +28,10 @@ class Settings(BaseSettings):
 	cartesia_api_key: str = Field(default="", alias="CARTESIA_API_KEY")
 	cartesia_model: str = Field(default="sonic-3", alias="CARTESIA_MODEL")
 	cartesia_voice_id: str = Field(default="", alias="CARTESIA_VOICE_ID")
+	livekit_url: str = Field(default="", alias="LIVEKIT_URL")
+	livekit_api_key: str = Field(default="", alias="LIVEKIT_API_KEY")
+	livekit_api_secret: str = Field(default="", alias="LIVEKIT_API_SECRET")
+	livekit_room_prefix: str = Field(default="sei-wise", alias="LIVEKIT_ROOM_PREFIX")
 
 
 	wise_faq_doc_path: str = Field(alias="WISE_FAQ_DOC_PATH")
@@ -37,6 +41,34 @@ class Settings(BaseSettings):
 	session_timeout_seconds: int = Field(
 		default=300,
 		alias="SESSION_TIMEOUT_SECONDS",
+	)
+	barge_in_enabled: bool = Field(
+		default=True,
+		alias="BARGE_IN_ENABLED",
+	)
+	vad_confidence: float = Field(
+		default=0.75,
+		alias="VAD_CONFIDENCE",
+	)
+	vad_start_secs: float = Field(
+		default=0.12,
+		alias="VAD_START_SECS",
+	)
+	vad_stop_secs: float = Field(
+		default=0.45,
+		alias="VAD_STOP_SECS",
+	)
+	vad_min_volume: float = Field(
+		default=0.45,
+		alias="VAD_MIN_VOLUME",
+	)
+	pause_call_seconds: int = Field(
+		default=10,
+		alias="PAUSE_CALL_SECONDS",
+	)
+	pause_checkin_message: str = Field(
+		default="Are you still there? Can we continue?",
+		alias="PAUSE_CHECKIN_MESSAGE",
 	)
 	enable_edge_tts_fallback: bool = Field(
 		default=True,

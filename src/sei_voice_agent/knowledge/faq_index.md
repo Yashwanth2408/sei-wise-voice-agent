@@ -21,3 +21,8 @@
 - Refunds / disputes / fraud / chargebacks
 - Changing recipient details as workflow action
 
+
+## Conversation Controls
+- Pause call / wait: hold on, wait, wait a second, one second, give me a moment, just a sec, pause, pause the call, let me check, I will be right back, can you wait
+- End call: bye, goodbye, end call, hang up, stop, cut the call
+

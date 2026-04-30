@@ -2,13 +2,16 @@ from __future__ import annotations
 
 
 import asyncio
+import contextlib
+import time
 from enum import Enum
 
 
 import structlog
 from pipecat.frames.frames import (
+    BotStartedSpeakingFrame,
+    BotStoppedSpeakingFrame,
     EndTaskFrame,
-    InterruptionFrame,
     InterimTranscriptionFrame,
     OutputTransportMessageFrame,
     TTSSpeakFrame,
@@ -33,6 +36,7 @@ logger = structlog.get_logger(__name__)
 class ConversationState(str, Enum):
     ACTIVE = "active"
     AWAITING_SCOPE_CONFIRMATION = "awaiting_scope_confirmation"
+    PAUSED = "paused"
     ENDING = "ending"
 
 
@@ -53,6 +57,14 @@ class WiseVoiceAgentProcessor(FrameProcessor):
         self._assistant_speaking = False
         self._latest_queued_text: str | None = None
         self._first_user_utterance_processed = False
+        self._barge_in_enabled = settings.barge_in_enabled
+        self._speech_epoch = 0
+        self._last_speech_started_at = 0.0
+        self._pause_call_seconds = settings.pause_call_seconds
+        self._pause_checkin_message = settings.pause_checkin_message
+        self._pause_task: asyncio.Task | None = None
+        self._pause_epoch = 0
+        self._start_pause_after_tts = False
 
 
     async def process_frame(self, frame, direction: FrameDirection):
@@ -63,9 +75,30 @@ class WiseVoiceAgentProcessor(FrameProcessor):
             return
 
 
+        if isinstance(frame, BotStartedSpeakingFrame):
+            self._assistant_speaking = True
+            await self.push_frame(frame, direction)
+            return
+
+
+        if isinstance(frame, BotStoppedSpeakingFrame):
+            self._assistant_speaking = False
+            await self.push_frame(frame, direction)
+            return
+
+
         if isinstance(frame, (UserStartedSpeakingFrame, VADUserStartedSpeakingFrame)):
+            now = time.monotonic()
+            if now - self._last_speech_started_at >= 0.3:
+                self._speech_epoch += 1
+                self._last_speech_started_at = now
+
+            if self._state == ConversationState.PAUSED:
+                await self._cancel_pause_call("user_started_speaking")
+                self._state = ConversationState.ACTIVE
+
             # Barge-in: caller starts speaking while TTS is active, so interrupt speech.
-            if self._assistant_speaking:
+            if self._barge_in_enabled and self._assistant_speaking:
                 logger.info("barge_in_detected", state=self._state.value)
                 self._telemetry.log("barge_in_detected", state=self._state.value)
                 self._assistant_speaking = False
@@ -73,12 +106,12 @@ class WiseVoiceAgentProcessor(FrameProcessor):
                     self._closing = False
                     self._end_after_tts = False
                     self._state = ConversationState.ACTIVE
-                await self.push_frame(InterruptionFrame(), FrameDirection.DOWNSTREAM)
+                await self.broadcast_interruption()
                 await self._push_demo_event(
                     {
                         "type": "demo-status",
                         "status": "listening",
-                        "label": "Listening",
+                        "label": "Interrupted",
                     }
                 )
             await self.push_frame(frame, direction)
@@ -93,6 +126,10 @@ class WiseVoiceAgentProcessor(FrameProcessor):
             user_text = frame.text.strip()
             if not user_text:
                 return
+
+            if self._state == ConversationState.PAUSED:
+                await self._cancel_pause_call("user_transcript_received")
+                self._state = ConversationState.ACTIVE
 
 
             normalized = self._normalize_text(user_text)
@@ -116,6 +153,7 @@ class WiseVoiceAgentProcessor(FrameProcessor):
 
 
         if isinstance(frame, TTSStoppedFrame) and self._end_after_tts:
+            await self._cancel_pause_call("call_ending")
             await self._push_demo_event(
                 {
                     "type": "demo-status",
@@ -129,6 +167,14 @@ class WiseVoiceAgentProcessor(FrameProcessor):
             self._state = ConversationState.ENDING
             self._telemetry.log("call_ending")
             await self.push_frame(EndTaskFrame(), FrameDirection.DOWNSTREAM)
+            return
+
+
+        if isinstance(frame, TTSStoppedFrame) and self._start_pause_after_tts:
+            self._assistant_speaking = False
+            self._start_pause_after_tts = False
+            await self._start_pause_call()
+            await self.push_frame(frame, direction)
             return
 
 
@@ -183,7 +229,18 @@ class WiseVoiceAgentProcessor(FrameProcessor):
             )
 
 
+            turn_epoch = self._speech_epoch
             reply = await self._handle_turn(current_text)
+            if turn_epoch != self._speech_epoch:
+                self._telemetry.log(
+                    "stale_reply_discarded",
+                    text=current_text,
+                    state=self._state.value,
+                )
+                current_text = self._latest_queued_text
+                self._latest_queued_text = None
+                continue
+
             if reply:
                 self._last_assistant_message = reply
                 self._telemetry.log("assistant_reply", text=reply, state=self._state.value)
@@ -244,8 +301,29 @@ class WiseVoiceAgentProcessor(FrameProcessor):
             )
 
 
+            if decision.intent == "pause_call" or decision.function_name == "pause_call":
+                pause_seconds = self._pause_call_seconds
+                if decision.function_arguments:
+                    try:
+                        pause_seconds = int(
+                            decision.function_arguments.get("seconds", self._pause_call_seconds)
+                        )
+                    except (TypeError, ValueError):
+                        pause_seconds = self._pause_call_seconds
+                self._pause_call_seconds = max(1, min(pause_seconds, 60))
+                self._state = ConversationState.PAUSED
+                self._start_pause_after_tts = True
+                self._telemetry.log(
+                    "function_call_requested",
+                    name="pause_call",
+                    seconds=self._pause_call_seconds,
+                )
+                return decision.reply or "Sure, I will wait."
+
+
             # End call
             if decision.intent == "end_call" or decision.should_end_call:
+                await self._cancel_pause_call("end_call_requested")
                 self._state = ConversationState.ENDING
                 self._end_after_tts = True
                 self._closing = True
@@ -329,6 +407,76 @@ class WiseVoiceAgentProcessor(FrameProcessor):
             return True
         dangling = ("and", "or", "but", "by", "with", "because", "if", "when", "like")
         return lowered.endswith(dangling)
+
+
+    async def _start_pause_call(self) -> None:
+        await self._cancel_pause_call("pause_restarted")
+        self._pause_epoch += 1
+        pause_epoch = self._pause_epoch
+        seconds = self._pause_call_seconds
+        self._state = ConversationState.PAUSED
+        self._telemetry.log("function_call_started", name="pause_call", seconds=seconds)
+        await self._push_demo_event(
+            {
+                "type": "demo-status",
+                "status": "paused",
+                "label": "Paused",
+            }
+        )
+        self._pause_task = asyncio.create_task(
+            self._pause_call_then_check_in(pause_epoch, seconds)
+        )
+
+
+    async def _cancel_pause_call(self, reason: str) -> None:
+        self._start_pause_after_tts = False
+        if self._pause_task and not self._pause_task.done():
+            self._pause_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._pause_task
+            self._telemetry.log("function_call_cancelled", name="pause_call", reason=reason)
+        self._pause_task = None
+
+
+    async def _pause_call_then_check_in(self, pause_epoch: int, seconds: int) -> None:
+        try:
+            await asyncio.sleep(seconds)
+            if pause_epoch != self._pause_epoch or self._state != ConversationState.PAUSED:
+                return
+
+            self._state = ConversationState.ACTIVE
+            self._last_assistant_message = self._pause_checkin_message
+            self._telemetry.log(
+                "function_call_completed",
+                name="pause_call",
+                seconds=seconds,
+                checkin=self._pause_checkin_message,
+            )
+            await self._push_demo_event(
+                {
+                    "type": "demo-transcript",
+                    "role": "assistant",
+                    "text": self._pause_checkin_message,
+                    "state": self._state.value,
+                }
+            )
+            await self._push_demo_event(
+                {
+                    "type": "demo-status",
+                    "status": "speaking",
+                    "label": "Checking in",
+                }
+            )
+            self._assistant_speaking = True
+            await self.push_frame(
+                TTSSpeakFrame(self._pause_checkin_message),
+                FrameDirection.DOWNSTREAM,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error("pause_call_error", error=str(e))
+            self._telemetry.log("pause_call_error", error=str(e))
 
 
     async def _push_demo_event(self, payload: dict) -> None:

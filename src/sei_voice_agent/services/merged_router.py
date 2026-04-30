@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Any
 
 
 import structlog
@@ -24,12 +25,18 @@ Decide what the caller is asking and what reply to speak.
 
 Return ONLY valid JSON with this exact schema:
 {
-  "intent": "faq_answer" | "out_of_scope" | "acknowledgment" | "end_call" | "continue" | "clarify",
+  "intent": "faq_answer" | "out_of_scope" | "acknowledgment" | "end_call" | "continue" | "clarify" | "pause_call",
   "reply": "<plain ASCII spoken text, 1-2 sentences max>",
   "should_end_call": false,
   "route": "faq_answer" | "deflect",
   "allowed": false,
-  "reason": "<short reason>"
+  "reason": "<short reason>",
+  "function_call": null | {
+    "name": "pause_call",
+    "arguments": {
+      "seconds": 10
+    }
+  }
 }
 
 
@@ -41,6 +48,7 @@ Rules:
 - If the state is awaiting_scope_confirmation and the caller says continue, keep going, don't cut, or stay on the line: intent=continue.
 - If the state is awaiting_scope_confirmation and the caller says cut the call, end the call, hang up, or stop: intent=end_call.
 - If caller says bye/goodbye/end call/hang up/stop: intent=end_call, should_end_call=true, reply="Understood. I will end the call now. Thanks for calling."
+- If caller says hold on, wait, wait a second, one second, give me a moment, just a sec, pause, pause the call, let me check, I'll be right back, or can you wait: intent=pause_call, route=deflect, allowed=false, reply="Sure, I will wait.", function_call={"name":"pause_call","arguments":{"seconds":10}}.
 - If caller says thanks/ok/yes/got it: intent=acknowledgment, reply="Of course. Ask me anything else about your Wise transfer."
 - If connection check (hello/hi/can you hear): intent=continue, reply="Yes, I can help. What transfer question do you have?"
 - If unclear or fragmentary: intent=clarify, reply="Sorry, can you say that again?"
@@ -91,6 +99,8 @@ class MergedRouteDecision:
     route: str
     allowed: bool
     reason: str
+    function_name: str | None = None
+    function_arguments: dict[str, Any] | None = None
 
 
 
@@ -126,6 +136,12 @@ class MergedConversationScopeRouter:
                 ],
             )
             payload = json.loads(completion.choices[0].message.content)
+            function_call = payload.get("function_call") or {}
+            if not isinstance(function_call, dict):
+                function_call = {}
+            function_arguments = function_call.get("arguments") or {}
+            if not isinstance(function_arguments, dict):
+                function_arguments = {}
             return MergedRouteDecision(
                 intent=payload["intent"],
                 reply=payload.get("reply", ""),
@@ -133,10 +149,23 @@ class MergedConversationScopeRouter:
                 route=payload.get("route", "deflect"),
                 allowed=bool(payload.get("allowed", False)),
                 reason=payload.get("reason", "model_decision"),
+                function_name=function_call.get("name"),
+                function_arguments=function_arguments,
             )
         except Exception as e:
             logger.warning("router_exception", error=str(e))
             lowered = user_text.lower()
+            if self._looks_like_pause_request(lowered):
+                return MergedRouteDecision(
+                    intent="pause_call",
+                    reply="Sure, I will wait.",
+                    should_end_call=False,
+                    route="deflect",
+                    allowed=False,
+                    reason="fallback_pause_call",
+                    function_name="pause_call",
+                    function_arguments={"seconds": 10},
+                )
             if any(token in lowered for token in ("bye", "goodbye", "end call", "hang up", "stop", "cut the call")):
                 return MergedRouteDecision(
                     intent="end_call",
@@ -182,3 +211,26 @@ class MergedConversationScopeRouter:
                 allowed=True,
                 reason="fallback_assume_transfer_question",
             )
+
+
+    def _looks_like_pause_request(self, lowered: str) -> bool:
+        pause_phrases = (
+            "hold on",
+            "wait a second",
+            "wait one second",
+            "one second",
+            "give me a moment",
+            "give me one moment",
+            "just a sec",
+            "just a second",
+            "pause the call",
+            "pause call",
+            "let me check",
+            "i'll be right back",
+            "ill be right back",
+            "can you wait",
+            "please wait",
+        )
+        if any(phrase in lowered for phrase in pause_phrases):
+            return True
+        return lowered.strip() in {"wait", "pause", "hold"}

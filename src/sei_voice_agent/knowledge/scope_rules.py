@@ -28,3 +28,18 @@ OUT_OF_SCOPE_TOPICS = [
     "cards",
     "unsupported Wise help topics",
 ]
+
+
+CONVERSATION_CONTROL_TOPICS = [
+    "hold on",
+    "wait",
+    "wait a second",
+    "one second",
+    "give me a moment",
+    "just a sec",
+    "pause",
+    "pause the call",
+    "let me check",
+    "i will be right back",
+    "can you wait",
+]
