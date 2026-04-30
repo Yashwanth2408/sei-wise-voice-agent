@@ -2,7 +2,10 @@
 
 Sei Wise Voice Agent is a scoped voice support demo for Wise transfer-tracking questions. It listens to callers over LiveKit, transcribes in real time, routes requests through a Wise FAQ scope, and responds with grounded TTS answers. The system is intentionally narrow and deflects anything outside transfer tracking.
 
-![UI Demo](data/ui.gif)
+![UI Demo 1](demo/1.png)
+![UI Demo 2](demo/2.png)
+![UI Demo 3](demo/3.png)
+![UI Demo 4](demo/4.png)
 
 ## What It Does
 
