@@ -1,6 +1,6 @@
-# Sei Wise Voice Agent
+# Wise Voice Agent
 
-Sei Wise Voice Agent is a scoped voice support demo for Wise transfer-tracking questions. It listens to callers over LiveKit, transcribes in real time, routes requests through a Wise FAQ scope, and responds with grounded TTS answers. The system is intentionally narrow and deflects anything outside transfer tracking.
+Wise Voice Agent is a scoped voice support demo for Wise transfer-tracking questions. It listens to callers over LiveKit, transcribes in real time, routes requests through a Wise FAQ scope, and responds with grounded TTS answers. The system is intentionally narrow and deflects anything outside transfer tracking.
 
 ![UI Demo 1](demo/1.png)
 ![UI Demo 2](demo/2.png)
@@ -67,7 +67,7 @@ CARTESIA_VOICE_ID=your_voice_id
 LIVEKIT_URL=your_livekit_url
 LIVEKIT_API_KEY=your_livekit_api_key
 LIVEKIT_API_SECRET=your_livekit_api_secret
-LIVEKIT_ROOM_PREFIX=sei-wise
+LIVEKIT_ROOM_PREFIX=wise
 
 WISE_FAQ_DOC_PATH=data/wise_where_is_my_money_faq.md
 CALL_TELEMETRY_DIR=logs/calls
@@ -87,7 +87,7 @@ ENABLE_EDGE_TTS_FALLBACK=true
 The API app exposes readiness and routing endpoints. If you run the API app directly, use:
 
 ```powershell
-uvicorn sei_voice_agent.api.main:app --host 127.0.0.1 --port 7860
+uvicorn wise_voice_agent.api.main:app --host 127.0.0.1 --port 7860
 ```
 
 Endpoints:
@@ -135,12 +135,12 @@ bot.py                         # Pipecat bootstrap entry point
 data/wise_where_is_my_money_faq.md
 frontend/                      # Demo UI assets served from /demo-assets
 logs/calls/                    # JSONL call telemetry output
-src/sei_voice_agent/api/       # FastAPI app and routes
-src/sei_voice_agent/core/      # Settings and environment config
-src/sei_voice_agent/knowledge/ # FAQ scope rules
-src/sei_voice_agent/prompts/   # System prompt text
-src/sei_voice_agent/services/  # Router, responder, voice processor
-src/sei_voice_agent/telemetry/ # Logging and call telemetry
+src/wise_voice_agent/api/       # FastAPI app and routes
+src/wise_voice_agent/core/      # Settings and environment config
+src/wise_voice_agent/knowledge/ # FAQ scope rules
+src/wise_voice_agent/prompts/   # System prompt text
+src/wise_voice_agent/services/  # Router, responder, voice processor
+src/wise_voice_agent/telemetry/ # Logging and call telemetry
 tests/                         # Test folder
 ```
 

@@ -23,10 +23,10 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 
-from sei_voice_agent.core.settings import get_settings
-from sei_voice_agent.services.merged_router import MergedConversationScopeRouter
-from sei_voice_agent.services.responder import AnswerResponder
-from sei_voice_agent.telemetry.call_telemetry import CallTelemetry
+from wise_voice_agent.core.settings import get_settings
+from wise_voice_agent.services.merged_router import MergedConversationScopeRouter
+from wise_voice_agent.services.responder import AnswerResponder
+from wise_voice_agent.telemetry.call_telemetry import CallTelemetry
 
 
 logger = structlog.get_logger(__name__)

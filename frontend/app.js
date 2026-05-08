@@ -255,7 +255,7 @@ function buildClientReadyPayload() {
         data: {
             version: "1.0.0",
             about: {
-                library: "sei-wise-demo-ui",
+                library: "wise-demo-ui",
                 library_version: "1.0.0",
                 platform: navigator.platform,
                 platform_version: navigator.userAgent,

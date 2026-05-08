@@ -6,7 +6,7 @@ import sys
 import uuid
 from pathlib import Path
 
-# Add src directory to path so sei_voice_agent can be imported
+# Add src directory to path so wise_voice_agent can be imported
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from fastapi import HTTPException
@@ -28,9 +28,9 @@ from pipecat.transcriptions.language import Language
 from pipecat.transports.livekit.transport import LiveKitParams
 
 
-from sei_voice_agent.core.settings import get_settings
-from sei_voice_agent.services.voice_processor import WiseVoiceAgentProcessor
-from sei_voice_agent.telemetry.logging import configure_logging
+from wise_voice_agent.core.settings import get_settings
+from wise_voice_agent.services.voice_processor import WiseVoiceAgentProcessor
+from wise_voice_agent.telemetry.logging import configure_logging
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
@@ -71,7 +71,7 @@ async def livekit_session():
 		settings,
 		room_name=room_name,
 		identity=agent_identity,
-		name="Sei Wise Agent",
+		name="Wise Agent",
 	)
 
 	runner_args = LiveKitRunnerArguments(

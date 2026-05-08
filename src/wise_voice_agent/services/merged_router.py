@@ -10,7 +10,7 @@ import structlog
 from groq import Groq
 
 
-from sei_voice_agent.core.settings import get_settings
+from wise_voice_agent.core.settings import get_settings
 
 
 logger = structlog.get_logger(__name__)

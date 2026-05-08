@@ -2,8 +2,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 
-from sei_voice_agent.services.responder import AnswerResponder
-from sei_voice_agent.services.router import ScopeRouter
+from wise_voice_agent.services.responder import AnswerResponder
+from wise_voice_agent.services.router import ScopeRouter
 
 
 router = APIRouter()

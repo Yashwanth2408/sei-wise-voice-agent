@@ -11,8 +11,8 @@ from groq import Groq
 
 
 
-from sei_voice_agent.core.settings import get_settings
-from sei_voice_agent.knowledge.loader import load_wise_faq_markdown
+from wise_voice_agent.core.settings import get_settings
+from wise_voice_agent.knowledge.loader import load_wise_faq_markdown
 
 
 

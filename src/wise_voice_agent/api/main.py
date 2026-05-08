@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
-from sei_voice_agent.api.routes import router as api_router
-from sei_voice_agent.core.settings import get_settings
-from sei_voice_agent.knowledge.loader import load_wise_faq_markdown
-from sei_voice_agent.telemetry.logging import configure_logging
+from wise_voice_agent.api.routes import router as api_router
+from wise_voice_agent.core.settings import get_settings
+from wise_voice_agent.knowledge.loader import load_wise_faq_markdown
+from wise_voice_agent.telemetry.logging import configure_logging
 
 
 settings = get_settings()
@@ -12,7 +12,7 @@ configure_logging(settings.log_level)
 
 
 app = FastAPI(
-    title="Sei Wise Voice Agent",
+    title="Wise Voice Agent",
     version="0.1.0",
     default_response_class=ORJSONResponse,
 )
